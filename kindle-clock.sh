@@ -188,7 +188,8 @@ while true; do
 	HOURLY_UPDATE="1"
     fi
     # Don't update during the night, saves api calls, still clear the hour to avoid overlapping
-    if [ "$HOUR" -lt $NIGHT_START ] || [ "$HOUR" -ge $NIGHT_END ]; then
+    if [ "$HOUR" -ge $NIGHT_START ] || [ "$HOUR" -lt $NIGHT_END ]; then
+	log "Night time, skipping the hourly update"
     	$FBINK -b -k top=55,left=0,width=260,height=200
 	HOURLY_UPDATE="0"
     fi
