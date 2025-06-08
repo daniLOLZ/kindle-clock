@@ -36,4 +36,4 @@ The script logs to `./clock.log`.
 * [ ] Parametrize the grid
 * [ ] Add a showcase image
 * [ ] Find more useless processes to stop 
-* [ ] FIX: Find out why the clock stops after disconnecting it from power supply
+* [ ] Find a way to more efficiently parse the tasks and maybe not rely on a python script
