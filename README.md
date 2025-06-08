@@ -1,44 +1,39 @@
 # Kindle Clock
 
-This turns a Kindle Paperwhite into a pretty clock with a little bit of weather info.
+This turns a Kindle Paperwhite into a pretty clock 
+Forked from mattzzw/kindle-clock and modified it to also hold my tasks from Todoist instead of the weather info
 
-Every minute the device updates the screen and is put to suspend to RAM for the reminder of the minute for minimum power consumption.
+Modifications from the original:
+* Removed weather info
+* Added Todoist integration to fetch tasks with the label `KINDLE`
+* Made a checkerboard like pattern for the tasks
+* Shows a nice image at the top of the screen :)
+* Refactored some code
+* Reduced number of wakes during the night, from `NIGHT_START` to `NIGHT_END`
 
-Every hour the clock is synchronized via `ntpdate` and weather info is updated. Screen updates can be a couple of seconds late (or dozens of seconds on the full hour - depending on how long it takes to reconnect to wifi, get data etc.) but as the RTC on my kindle is drifting like crazy anyway this clock will not be super (=to the second) accurate anyway.
-
-![screenshot](./screenshot.jpg)
-
-This is in early development, we'll see how much the battery life can be approved.
-
-EDIT: Quick calculation shows a maximum runtime of a couple of days at best. (1600mAh battery, using it for 5 secs @ 100mA every minute results in 8 days runtime)
-
-But I don't mind running the clock from a power supply :)
+These settings are specifically finetuned for my kindle so you might have to tweak some numbers for it to display properly
 
 ## What's what
-* `kindle-clock.sh`: Main loop, displays clock, suspend to RAM and wakeup
+* `kindle-clock.sh`: Main loop, displays clock and tasks, suspend to RAM and wakeup
 * `config.xml`: KUAL config file
 * `menu.json`: KUAL config file
-* `sync2kindle.sh`: simple rsync helper for development
+* `get_tasks.py`: Utility to parse the tasks since json is hard in sh
 
-The scipts logs to `/mnt/us/clock.log`.
-
-## Kindle preparation:
-* jailbreak the kindle (doh!)
-* Install KUAL
-* Install MRInstaller (this should be insalled anyway, additionally this includes fbink)
+The script logs to `./clock.log`.
 
 ## Installation:
-* create directory `/mnt/us/extensions/clock`
-* copy everything to the newly created directory (or use `sync2kindle.sh`)
+* create directory `/mnt/us/extensions/clock` (you can choose another name for this last directory as long as it's in `/mnt/us/extensions/`
+* copy everything to the newly created directory 
+* create the file `api_key.txt` containing your Todoist API key. You can find it in Settings > Integrations > Developer > API key
 
 ## Starting Clock
-* Open up KUAL and press 'Clock'
+* Open up KUAL and press 'Clock - Todoist'
 
 ## Stopping :
-* Force reboot kindle by holding powerbutton ~10 seconds
+* Force reboot kindle by holding powerbutton until it resets
 
-## Todo:
-* [x] Set time every hour via ntpdate, RTC seems to be awfully drifting
-* [x] keep backlight off during update
-* [ ] optimize battery life, make updates quicker
-* [ ] clean up code
+## Todo list (heh):
+* [ ] Parametrize the grid
+* [ ] Add a showcase image
+* [ ] Find more useless processes to stop 
+* [ ] FIX: Find out why the clock stops after disconnecting it from power supply

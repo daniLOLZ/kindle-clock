@@ -1,7 +1,7 @@
 {
 	"items": [
 	{
-		"name": "Clock",
+		"name": "Clock - Todoist",
 		"action": "setsid ./kindle-clock.sh"
 	}
 	]
