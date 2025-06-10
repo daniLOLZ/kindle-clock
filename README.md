@@ -33,7 +33,12 @@ The script logs to `./clock.log`.
 * Force reboot kindle by holding powerbutton until it resets
 
 ## Todo list (heh):
-* [ ] Parametrize the grid
+* [x] Parametrize the grid
 * [ ] Add a showcase image
 * [ ] Find more useless processes to stop 
 * [ ] Find a way to more efficiently parse the tasks and maybe not rely on a python script
+* [ ] Estimate the power consumption of different parts of the script
+    * [ ] Normal use
+    * [ ] Without enabling wifi to update time and tasks
+    * [ ] Without refreshing the screen and redrawing the tasks
+    * [ ] Without any of the above (night mode)

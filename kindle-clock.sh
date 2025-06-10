@@ -19,11 +19,28 @@ BACKLIGHT="/sys/devices/platform/imx-i2c.0/i2c-0/0-003c/max77696-bl.0/backlight/
 BATTERY="/sys/devices/system/wario_battery/wario_battery0/battery_capacity"
 TEMP_SENSOR="/sys/devices/platform/imx-i2c.0/i2c-0/0-003c/max77696-battery.0/power_supply/max77696-battery/temp"
 
-# Constants
-COLUMNS=2
-ROWS=9
-COLUMN_WIDTH=290
-ROW_HEIGHT=50
+# Constants for drawing
+SCREEN_WIDTH=600
+SCREEN_HEIGHT=800
+COLUMNS=4
+ROWS=5
+THIN_THICKNESS=2
+BOX_Y_OFFSET=11
+BOX_X_OFFSET=5
+PL_SEPARATION=5
+PL_SHRINKING=7
+PL_MARGIN=2	
+LINE_WHITESPACE=10
+GRID_Y_START=320 
+GRID_Y_END=$(($SCREEN_HEIGHT-20))
+GRID_X_START=8
+GRID_X_END=$(($SCREEN_WIDTH-$GRID_X_START))
+COLUMN_WIDTH=$((($GRID_X_END-$GRID_X_START-$THIN_THICKNESS)/$COLUMNS))
+ROW_HEIGHT=$((($GRID_Y_END-$GRID_Y_START-$THIN_THICKNESS)/$ROWS))
+PRIORITY_WIDTH=$(($PL_SEPARATION*2+$THIN_THICKNESS))
+# PRIORITY_WIDTH=10
+
+# Constants for function
 NIGHT_START=3
 NIGHT_END=9
 
@@ -55,7 +72,6 @@ draw_recurrent(){
     $FBINK -b -O -t $FONT,size=118,top=18,bottom=0,left=0,right=0 "$TIME"
     $FBINK -b    -t $FONT2,size=12,top=10,bottom=0,left=540,right=0 "$BAT%"    
 }
-
 draw_hourly(){
 	
 	# Add tasks in a grid
@@ -66,20 +82,31 @@ draw_hourly(){
 	# while [ "$ROW_cur" -lt "$ROWS" ]; do
 	while [ "$position_cur" -lt "$num_tasks" ]; do
 		position_cur=$(($COL_cur+$ROW_cur*$COLUMNS+1))
-		TEXT_cur=$(echo "$TASKS_str" | cut -d';' -f "$position_cur" -s)
-		X_cur=$((20+$COL_cur*$COLUMN_WIDTH))
-		right_margin=$(( ($COLUMNS-$COL_cur-1) * $COLUMN_WIDTH + 15))
-		Y_cur=$((337+$ROW_cur*$ROW_HEIGHT))
-		bottom_margin=$(( ($ROWS-$ROW_cur-1) * $ROW_HEIGHT + 20))
+		ITEM_cur=$(echo "$TASKS_str" | cut -d';' -f "$position_cur" -s)
+		TEXT_cur=$(echo "$ITEM_cur" | cut -d'@' -f 1)
+		PRIORITY_cur=$(echo "$ITEM_cur" | cut -d'@' -f 2)
+		X_cur=$(($GRID_X_START+$THIN_THICKNESS+$COL_cur*$COLUMN_WIDTH+$PRIORITY_WIDTH+$BOX_X_OFFSET))
+		right_margin=$(( ($COLUMNS-$COL_cur-1) * $COLUMN_WIDTH + $GRID_X_START + $THIN_THICKNESS + $PRIORITY_WIDTH + $BOX_X_OFFSET))
+		Y_cur=$(($GRID_Y_START+$THIN_THICKNESS+$BOX_Y_OFFSET+$ROW_cur*$ROW_HEIGHT))
+		bottom_margin=$(( ($ROWS-$ROW_cur-1) * $ROW_HEIGHT + ($SCREEN_HEIGHT - $GRID_Y_END) + $LINE_WHITESPACE/2 ))
 		color_bg="WHITE"
+		marginalized_groups=$(($X_cur-$PRIORITY_WIDTH))
 
 		# Add checkerboard pattern
 		if [ "$(( ( $COL_cur + $ROW_cur ) % 2 ))" -eq 0 ]; then
 		    color_bg="GRAYD"
 		fi
-		$FBINK -b -B $color_bg -k top=$(($Y_cur-11)),left=$(($X_cur-5)),width=$COLUMN_WIDTH,height=$ROW_HEIGHT
-
+		$FBINK -b -B $color_bg -k top=$(($Y_cur-$BOX_Y_OFFSET/2)),left=$marginalized_groups,width=$(($COLUMN_WIDTH-$LINE_WHITESPACE)),height=$(($ROW_HEIGHT-$LINE_WHITESPACE))
 		$FBINK -b -o -m -t $FONT2,size=10,top=$Y_cur,bottom=$bottom_margin,left=$X_cur,right=$right_margin "$TEXT_cur"
+
+		# Add priority lines
+		priority_inc=1
+		while [ "$priority_inc" -lt "$PRIORITY_cur" ]; do
+
+			$FBINK -b -B BLACK -k top=$(($Y_cur-$BOX_Y_OFFSET/2+$PL_MARGIN+$PL_SHRINKING*($priority_inc-1))),left=$(($marginalized_groups+$PL_SEPARATION*($priority_inc-1))),width=$THIN_THICKNESS,height=$(($ROW_HEIGHT-$LINE_WHITESPACE-2*$PL_MARGIN-2*$PL_SHRINKING*($priority_inc-1)))
+			$FBINK -b -B BLACK -k top=$(($Y_cur-$BOX_Y_OFFSET/2+$PL_MARGIN+$PL_SHRINKING*($priority_inc-1))),left=$(($SCREEN_WIDTH-$right_margin+$PL_SEPARATION*(4 - $priority_inc-1))),width=$THIN_THICKNESS,height=$(($ROW_HEIGHT-$LINE_WHITESPACE-2*$PL_MARGIN-2*$PL_SHRINKING*($priority_inc-1)))
+			priority_inc=$(($priority_inc+1))
+		done
 
 		COL_cur=$(($COL_cur+1))
 		if [ "$COL_cur" -ge "$COLUMNS" ]; then
@@ -88,17 +115,28 @@ draw_hourly(){
 		fi
 	done
 
-	# Make separation lines
-	$FBINK -b -k top=320,left=5,width=10,height=460
-	$FBINK -b -B BLACK -k top=320,left=8,width=2,height=460
-	$FBINK -b -k top=320,left=295,width=10,height=460
-	$FBINK -b -B BLACK -k top=320,left=299,width=2,height=460
-	$FBINK -b -k top=320,left=585,width=10,height=460
-	$FBINK -b -B BLACK -k top=320,left=590,width=2,height=460
-	$FBINK -b -B BLACK -k top=320,left=8,width=584,height=2
-	$FBINK -b -B BLACK -k top=780,left=8,width=584,height=2
+	## Make separation lines
+	# First
+	$FBINK -b -k top=$GRID_Y_START,left=$((0)),width=$(($GRID_X_START+$THIN_THICKNESS)),height=$(($GRID_Y_END-$GRID_Y_START))
+	$FBINK -b -B BLACK -k top=$GRID_Y_START,left=$GRID_X_START,width=$THIN_THICKNESS,height=$(($GRID_Y_END-$GRID_Y_START))
+	# Inbetween
+	# Disabled because with the priority lines it's  bit too much clutter
+	COL_cur=99
+	while [ "$COL_cur" -lt "$COLUMNS" ]; do
+		line_y_cur=$(( ($GRID_X_END-$GRID_X_START) *$COL_cur/$COLUMNS + $GRID_X_START))
+		$FBINK -b -k top=$GRID_Y_START,left=$(($line_y_cur - $LINE_WHITESPACE/2)),width=$LINE_WHITESPACE,height=$(($GRID_Y_END-$GRID_Y_START))
+		$FBINK -b -B BLACK -k top=$GRID_Y_START,left=$(($line_y_cur - $THIN_THICKNESS/2)),width=$THIN_THICKNESS,height=$(($GRID_Y_END-$GRID_Y_START))
+		COL_cur=$(($COL_cur+1))
+	done
+	# Last
+	$FBINK -b -k top=$GRID_Y_START,left=$(($GRID_X_END-$THIN_THICKNESS)),width=$(($SCREEN_WIDTH-$GRID_X_END-$THIN_THICKNESS)),height=$(($GRID_Y_END-$GRID_Y_START))
+	$FBINK -b -B BLACK -k top=$GRID_Y_START,left=$(($GRID_X_END-$THIN_THICKNESS)),width=$THIN_THICKNESS,height=$(($GRID_Y_END-$GRID_Y_START))
+
+	# Horizontal lines
+	$FBINK -b -B BLACK -k top=$GRID_Y_START,left=$GRID_X_START,width=$(($SCREEN_WIDTH-2*$GRID_X_START)),height=$THIN_THICKNESS
+	$FBINK -b -B BLACK -k top=$GRID_Y_END,left=$GRID_X_START,width=$(($SCREEN_WIDTH-2*$GRID_X_START)),height=$THIN_THICKNESS
 	# Clear space after the grid
-	$FBINK -b -k top=782,left=8,width=584,height=15
+	$FBINK -b -k top=$(($GRID_Y_END+$THIN_THICKNESS)),left=$GRID_X_START,width=$(($SCREEN_WIDTH-2*$GRID_X_START)),height=$(($SCREEN_HEIGHT-$GRID_Y_END-$THIN_THICKNESS))
 
 	# Text updated with low frequency
 	# Date assumes that the hourly update happens at xx:00
@@ -108,8 +146,6 @@ draw_hourly(){
 	fi
 	# Print a friend
 	eips -g $FRIEND_PATH -x 270 -y 10
-
-
 }
 
 update_data() {
@@ -188,8 +224,9 @@ while true; do
 	HOURLY_UPDATE="1"
     fi
     # Don't update during the night, saves api calls, still clear the hour to avoid overlapping
-    if [ "$HOUR" -ge $NIGHT_START ] && [ "$HOUR" -lt $NIGHT_END ]; then
+    if [ "$HOUR" -ge $NIGHT_START ] && [ "$HOUR" -lt $NIGHT_END ] && [ "$HOURLY_UPDATE" = "1" ]; then
 	log "Night time, skipping the hourly update"
+	# At least refresh the hour tho
     	$FBINK -b -k top=55,left=0,width=260,height=200
 	HOURLY_UPDATE="0"
     fi
