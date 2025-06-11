@@ -3,6 +3,8 @@
 This turns a Kindle Paperwhite into a pretty clock 
 Forked from mattzzw/kindle-clock and modified it to also hold my tasks from Todoist instead of the weather info
 
+![showcase image of the clock](kindle_clock.jpg)
+
 Modifications from the original:
 * Removed weather info
 * Added Todoist integration to fetch tasks with the label `KINDLE`
@@ -34,7 +36,7 @@ The script logs to `./clock.log`.
 
 ## Todo list (heh):
 * [x] Parametrize the grid
-* [ ] Add a showcase image
+* [x] Add a showcase image
 * [ ] Find more useless processes to stop 
 * [ ] Find a way to more efficiently parse the tasks and maybe not rely on a python script
 * [ ] Estimate the power consumption of different parts of the script
