@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # PWD=$(pwd)
-DEBUG=1
+DEBUG=0
 LOG="/mnt/us/extensions/todoist_weather/clock.log"
 #LOG="/dev/null"
 #LOG="/dev/pts/0"

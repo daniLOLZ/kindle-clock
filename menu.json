@@ -1,8 +1,8 @@
 {
-	"items": [
-	{
-		"name": "Weather-Task dashboard",
-		"action": "setsid ./kindle-clock.sh"
-	}
-	]
+  "items": [
+    {
+      "name": "Weather - Task dashboard",
+      "action": "setsid ./kindle-clock.sh"
+    }
+  ]
 }
