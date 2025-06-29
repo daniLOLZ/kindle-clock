@@ -1,0 +1,11 @@
+{
+  "todoist_label": "KINDLE",
+  "city": "London",
+  "night_start": 2,
+  "night_end": 9,
+  "columns": 4,
+  "rows": 4,
+  "screen_width": 600,
+  "screen_height": 800,
+  "timezone_offset": 2
+}
