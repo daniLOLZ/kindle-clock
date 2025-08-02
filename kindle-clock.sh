@@ -95,15 +95,20 @@ draw_tasks() {
     if [ "$position_cur" -ge "$MAX_TASKS" ]; then
       break
     fi
-    position_cur=$(($COL_cur + $ROW_cur * $COLUMNS + 1))
-    task_line_cur=$(($position_cur * 2 - 1))
+    # Indices to get the data for the current task from the TASKS_str string
+    # These are 1-indexed because sed starts counting with 1, smh
+    task_line_cur=$(($position_cur * 3 + 1))
     priority_line_cur=$(($task_line_cur + 1))
-    # ITEM_cur=$(echo "$TASKS_str" | cut -d';' -f "$position_cur" -s)
+    subtask_line_cur=$(($task_line_cur + 2))
+
     TEXT_cur=$(echo "$TASKS_str" | sed -n "${task_line_cur} p")
     PRIORITY_cur=$(echo "$TASKS_str" | sed -n "${priority_line_cur} p")
+    subtasks_cur=$(echo "$TASKS_str" | sed -n "${subtask_line_cur} p")
+
+    # Limits for the current task text
     X_cur=$(($GRID_X_START + $THIN_THICKNESS + $COL_cur * $COLUMN_WIDTH + $PRIORITY_WIDTH + $BOX_X_OFFSET))
-    right_margin=$((($COLUMNS - $COL_cur - 1) * $COLUMN_WIDTH + $GRID_X_START + $THIN_THICKNESS + $PRIORITY_WIDTH + $BOX_X_OFFSET))
     Y_cur=$(($GRID_Y_START + $THIN_THICKNESS + $BOX_Y_OFFSET + $ROW_cur * $ROW_HEIGHT))
+    right_margin=$((($COLUMNS - $COL_cur - 1) * $COLUMN_WIDTH + $GRID_X_START + $THIN_THICKNESS + $PRIORITY_WIDTH + $BOX_X_OFFSET))
     bottom_margin=$((($ROWS - $ROW_cur - 1) * $ROW_HEIGHT + ($SCREEN_HEIGHT - $GRID_Y_END) + $LINE_WHITESPACE / 2))
     color_bg="WHITE"
     marginalized_groups=$(($X_cur - $PRIORITY_WIDTH))
@@ -115,20 +120,35 @@ draw_tasks() {
     $FBINK -b -B $color_bg -k top=$(($Y_cur - $BOX_Y_OFFSET / 2)),left=$marginalized_groups,width=$(($COLUMN_WIDTH - $LINE_WHITESPACE)),height=$(($ROW_HEIGHT - $LINE_WHITESPACE))
     $FBINK -b -O -m -t $FONT2,size=10,top=$Y_cur,bottom=$bottom_margin,left=$X_cur,right=$right_margin "$TEXT_cur"
 
+    # Add subtask count
+    if [ "$subtasks_cur" -gt 0 ]; then
+      subtasks_present=true
+    else
+      subtasks_present=false
+    fi
+
     # Add priority lines
     priority_inc=1
     while [ "$priority_inc" -lt "$PRIORITY_cur" ]; do
 
-      $FBINK -b -B BLACK -k top=$(($Y_cur - $BOX_Y_OFFSET / 2 + $PL_MARGIN + $PL_SHRINKING * ($priority_inc - 1))),left=$(($marginalized_groups + $PL_SEPARATION * ($priority_inc - 1))),width=$THIN_THICKNESS,height=$(($ROW_HEIGHT - $LINE_WHITESPACE - 2 * $PL_MARGIN - 2 * $PL_SHRINKING * ($priority_inc - 1)))
-      $FBINK -b -B BLACK -k top=$(($Y_cur - $BOX_Y_OFFSET / 2 + $PL_MARGIN + $PL_SHRINKING * ($priority_inc - 1))),left=$(($SCREEN_WIDTH - $right_margin + $PL_SEPARATION * (4 - $priority_inc - 1))),width=$THIN_THICKNESS,height=$(($ROW_HEIGHT - $LINE_WHITESPACE - 2 * $PL_MARGIN - 2 * $PL_SHRINKING * ($priority_inc - 1)))
+      cur_priority_line_top=$(($Y_cur - $BOX_Y_OFFSET / 2 + $PL_MARGIN + $PL_SHRINKING * ($priority_inc - 1)))
+      cur_priority_line_height=$(($ROW_HEIGHT - $LINE_WHITESPACE - 2 * $PL_MARGIN - 2 * $PL_SHRINKING * ($priority_inc - 1)))
+      $FBINK -b -B BLACK -k top=$cur_priority_line_top,left=$(($marginalized_groups + $PL_SEPARATION * ($priority_inc - 1))),width=$THIN_THICKNESS,height=$cur_priority_line_height
+      $FBINK -b -B BLACK -k top=$cur_priority_line_top,left=$(($SCREEN_WIDTH - $right_margin + $PL_SEPARATION * (4 - $priority_inc - 1))),width=$THIN_THICKNESS,height=$cur_priority_line_height
       priority_inc=$(($priority_inc + 1))
     done
+
+    if $subtasks_present; then
+      $FBINK -b -p -m -B $color_bg -t $FONT2,size=6,top=$(($Y_cur + $ROW_HEIGHT - 31)),bottom=$bottom_margin,left=$(($X_cur + $COLUMN_WIDTH - 40)),right=$(($right_margin - $PRIORITY_WIDTH)) "+$subtasks_cur"
+    fi
 
     COL_cur=$(($COL_cur + 1))
     if [ "$COL_cur" -ge "$COLUMNS" ]; then
       COL_cur="0"
       ROW_cur=$(($ROW_cur + 1))
     fi
+    # Current task being dealt with, 0 to MAX_TASKS-1
+    position_cur=$(($COL_cur + $ROW_cur * $COLUMNS))
   done
 
   ## Make separation lines
@@ -189,7 +209,7 @@ update_weather() {
 
 update_todoist() {
   TASKS_str=$(./get_tasks.sh)
-  num_tasks=$(($(echo "$TASKS_str" | wc -l) / 2))
+  num_tasks=$(($(echo "$TASKS_str" | wc -l) / 3))
   log "Got $num_tasks tasks."
 }
 
