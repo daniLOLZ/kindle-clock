@@ -25,6 +25,8 @@ The preference file lets you change:
 * Screen size
 * Night time interval
 
+With the current settings the device lasts about 24 days between recharge cycles
+
 ## What's what
 
 * `kindle-clock.sh`: Main loop, displays weather and tasks, suspend to RAM and wakeup
@@ -51,7 +53,7 @@ To manually refresh the screen, simply press the power button and wait for the s
 
 ## Stopping
 
-Force reboot kindle by holding powerbutton until it resets
+Force reboot kindle by holding the power button until it resets
 
 ## Todo list (heh)
 
