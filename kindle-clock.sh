@@ -1,8 +1,9 @@
 #!/bin/sh
 
 # PWD=$(pwd)
-DEBUG=1
-LOG="/mnt/us/extensions/todoist_weather/clock.log"
+DEBUG=0
+BASE_DIR_KINDLE="/mnt/us/extensions/tasknotes_weather"
+LOG="$BASE_DIR_KINDLE/clock.log"
 #LOG="/dev/null"
 #LOG="/dev/pts/0"
 TASK_SERVER="dani@192.168.1.2"
@@ -40,7 +41,8 @@ PL_SEPARATION=5
 PL_SHRINKING=7
 PL_MARGIN=2
 LINE_WHITESPACE=10
-GRID_Y_START=430
+X_TOP_EDGE_PERCENT=$(jq '.task_top_edge_percent' $PREFERENCES_FILE)
+GRID_Y_START=$(awk "BEGIN {printf \"%d\", $X_TOP_EDGE_PERCENT * $SCREEN_HEIGHT}")
 GRID_Y_END=$(($SCREEN_HEIGHT - 10))
 GRID_X_START=8
 GRID_X_END=$(($SCREEN_WIDTH - $GRID_X_START))
@@ -207,7 +209,8 @@ update_data() {
 
 update_weather() {
   curl --output "${WEATHER_PATH}" "v2.wttr.in/$CITY.png"
-  $CONVERT $WEATHER_PATH -strip -negate -colorspace gray -gamma 0.2 -crop 578x416+7+38 "$WEATHER_PATH_CROPPED"
+  img_height=$(($GRID_Y_START - 10))
+  $CONVERT $WEATHER_PATH -strip -negate -colorspace gray -gamma 0.2 -crop ${SCREEN_WIDTH}x${img_height}+7+38 "$WEATHER_PATH_CROPPED"
   cp $WEATHER_PATH "${WEATHER_PATH}_${HOUR}" # Store a circular buffer of images for debug purposes
 }
 
@@ -250,6 +253,13 @@ update_tasks() {
 
 ### Prep Kindle...
 log " ------------- Startup ------------"
+
+### Flags
+while getopts "d:" option; do
+  case "$option" in
+  d) DEBUG=${OPTARG} ;;
+  esac
+done
 
 ### No way of running this if wifi is down.
 if [ $(lipc-get-prop com.lab126.wifid cmState) != "CONNECTED" ]; then

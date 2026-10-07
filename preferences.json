@@ -7,5 +7,6 @@
   "rows": 4,
   "screen_width": 600,
   "screen_height": 800,
+  "task_top_edge_percent": 0.5,
   "timezone_offset": 2
 }
