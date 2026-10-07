@@ -284,7 +284,7 @@ if [ "$DEBUG" = "0" ]; then
 fi
 log "Stopped all useless processes"
 
-$FBINK -w -c -f -m -t $FONT,size=20,top=380,bottom=0,left=0,right=0 "Starting Clock..." >/dev/null 2>&1
+$FBINK -w -c -f -m -t $FONT,size=20,top=380,bottom=0,left=0,right=0 "Starting Dashboard..." >/dev/null 2>&1
 
 sleep 1
 
