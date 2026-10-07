@@ -49,6 +49,7 @@ PRIORITY_WIDTH=$(($PL_SEPARATION * 2 + $THIN_THICKNESS))
 # Constants for function
 NIGHT_START="$(jq '.night_start' $PREFERENCES_FILE)"
 NIGHT_END="$(jq '.night_end' $PREFERENCES_FILE)"
+SLEEP_SECS_MIN=1800
 CITY="$(jq '.city' $PREFERENCES_FILE)"
 TIMEZONE_OFFSET="$(jq '.timezone_offset' $PREFERENCES_FILE)" # i hate timezones
 
@@ -375,7 +376,8 @@ while true; do
 
   # If there's a problem with the calculation (e.g. time drift), try a minute later
   if [ $SLEEP_SECS -lt 5 ]; then
-    SLEEP_SECS=60
+    log "Sleep time set for too low a value of $SLEEP_SECS s, raising it to $SLEEP_SECS_MIN"
+    SLEEP_SECS=$SLEEP_SECS_MIN
   fi
 
   rtcwake -d /dev/rtc1 -m no -s $SLEEP_SECS
