@@ -5,6 +5,7 @@ DEBUG=0
 LOG="/mnt/us/extensions/todoist_weather/clock.log"
 #LOG="/dev/null"
 #LOG="/dev/pts/0"
+TASK_SERVER="dani@192.168.1.2"
 
 # Paths
 FBINK="/mnt/us/extensions/MRInstaller/bin/PW2/fbink -q"
@@ -15,6 +16,8 @@ FRIEND_PATH="/mnt/us/images/tails_logo_small_bg.png"
 WEATHER_PATH="/mnt/us/images/weather.png"
 WEATHER_PATH_CROPPED="/mnt/us/images/weather_cropped.png"
 PREFERENCES_FILE="./preferences.json"
+TASK_REMOTE_PATH="/home/dani/logs/tasks.json"
+TASK_LOCAL="./tasks.json"
 
 #PW2 binaries
 FBROTATE="echo 270 > /sys/devices/platform/imx_epdc_fb/graphics/fb0/rotate"
@@ -208,10 +211,41 @@ update_weather() {
   cp $WEATHER_PATH "${WEATHER_PATH}_${HOUR}" # Store a circular buffer of images for debug purposes
 }
 
-update_todoist() {
-  TASKS_str=$(./get_tasks.sh)
-  num_tasks=$(($(echo "$TASKS_str" | wc -l) / 3))
-  log "Got $num_tasks tasks."
+priority_to_level() {
+  case "$1" in
+  highest) echo "5" ;;
+  high) echo "4" ;;
+  medium) echo "3" ;;
+  low) echo "2" ;;
+  *) echo "1" ;;
+  esac
+}
+
+update_tasks() {
+  if scp -i ./server_scp -o ConnectTimeout=5 -o BatchMode=yes \
+    "$TASK_SERVER:$TASK_REMOTE_PATH" "$TASK_LOCAL" 2>/dev/null; then
+    log "Fetched task JSON from server via scp."
+  else
+    log "WARN: could not scp tasks from server, keeping old data."
+    if [ ! -f "$TASK_LOCAL" ]; then
+      TASKS_str=""
+      num_tasks=0
+      return
+    fi
+  fi
+
+  if ! jq empty "$TASK_LOCAL" 2>/dev/null; then
+    log "WARN: tasks.json is not valid JSON, keeping old data."
+    return
+  fi
+
+  TASKS_str=$(jq -r '.[] | select(.status == "next-action") | "\(.name)|\(.priority)"' "$TASK_LOCAL" | while IFS='|' read -r name priority; do
+    level=$(priority_to_level "$priority")
+    printf '%s\n%s\n0\n' "$name" "$level"
+  done)
+
+  num_tasks=$(($(printf '%s\n' "$TASKS_str" | wc -l) / 3))
+  log "Got $num_tasks tasks from extractor."
 }
 
 ### Prep Kindle...
@@ -326,9 +360,9 @@ while true; do
     RC=$?
     log "Time set. ($RC)"
     # Update todoist tasks every day at 6
-    log "Updating todoist..."
-    update_todoist
-    log "Todoist updated."
+    log "Updating tasks..."
+    update_tasks
+    log "Tasks updated."
     log "Updating weather..."
     update_weather
     log "Weather updated."
