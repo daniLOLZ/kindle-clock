@@ -182,7 +182,7 @@ update_weather() {
   log "Updating weather..."
   curl --output "${WEATHER_PATH}" "v2.wttr.in/$CITY.png"
   img_height=$(($GRID_Y_START - 10))
-  $CONVERT $WEATHER_PATH -strip -negate -colorspace gray -gamma 0.2 -crop ${SCREEN_WIDTH}x${img_height}+7+38 "$WEATHER_PATH_CROPPED"
+  $CONVERT $WEATHER_PATH -strip -negate -colorspace gray -gamma 0.2 -crop ${SCREEN_WIDTH}x${img_height}+0+38 "$WEATHER_PATH_CROPPED"
   cp $WEATHER_PATH "${WEATHER_PATH}_${HOUR}" # Store a circular buffer of images for debug purposes
   log "Weather updated."
 }
