@@ -15,6 +15,7 @@ COLUMNS="$(jq '.columns' $PREFERENCES_FILE)"
 ROWS="$(jq '.rows' $PREFERENCES_FILE)"
 MAX_TASKS=$(($COLUMNS * $ROWS - 1))
 THIN_THICKNESS=2
+OUTER_PADDING=8
 BOX_Y_OFFSET=11
 BOX_X_OFFSET=5
 PL_SEPARATION=5
@@ -24,7 +25,7 @@ LINE_WHITESPACE=10
 X_TOP_EDGE_PERCENT=$(jq '.task_top_edge_percent' $PREFERENCES_FILE)
 GRID_Y_START=$(awk "BEGIN {printf \"%d\", $X_TOP_EDGE_PERCENT * $SCREEN_HEIGHT}")
 GRID_Y_END=$(($SCREEN_HEIGHT - 10))
-GRID_X_START=8
+GRID_X_START=$(($OUTER_PADDING))
 GRID_X_END=$(($SCREEN_WIDTH - $GRID_X_START))
 COLUMN_WIDTH=$((($GRID_X_END - $GRID_X_START - $THIN_THICKNESS) / $COLUMNS))
 ROW_HEIGHT=$((($GRID_Y_END - $GRID_Y_START - $THIN_THICKNESS) / $ROWS))
@@ -182,7 +183,8 @@ update_weather() {
   log "Updating weather..."
   curl --output "${WEATHER_PATH}" "v2.wttr.in/$CITY.png"
   img_height=$(($GRID_Y_START - 10))
-  $CONVERT $WEATHER_PATH -strip -negate -colorspace gray -gamma 0.2 -crop ${SCREEN_WIDTH}x${img_height}+3+38 "$WEATHER_PATH_CROPPED"
+  img_width=$(($SCREEN_WIDTH - 2 * $OUTER_PADDING))
+  $CONVERT $WEATHER_PATH -strip -negate -colorspace gray -gamma 0.2 -crop ${img_width}x${img_height}+${OUTER_PADDING}+38 "$WEATHER_PATH_CROPPED"
   cp $WEATHER_PATH "${WEATHER_PATH}_${HOUR}" # Store a circular buffer of images for debug purposes
   log "Weather updated."
 }
