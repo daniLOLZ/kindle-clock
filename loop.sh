@@ -78,7 +78,8 @@ update_tasks() {
     printf '%s\n%s\n0\n' "$name" "$level"
   done)
 
-  # 3 is name, priority, newline(?)
+  # 3 is name, priority, subtask number
+  #TODO add subtask numbers for tasknotes
   num_tasks=$(($(printf '%s\n' "$TASKS_str" | wc -l) / 3))
   log "Got $num_tasks tasks from extractor."
   log "Tasks updated."
