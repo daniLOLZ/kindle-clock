@@ -12,8 +12,20 @@ done
 
 fetch_code() {
   # Tried doing Cache-Control but github raw pages force max-age=300
-  curl $LOOP_CODE -o "./loop.sh"
-  curl $PREFERENCES_CODE -o "./preferences.json"
+  echo "$(date) Starting to fetch new code..." >>logs/curl_code.log
+  loop_sha_before=$(sha256sum loop.sh)
+  curl $LOOP_CODE -v -o "./loop.sh" 2>>logs/curl_code.log
+  loop_sha_after=$(sha256sum loop.sh)
+  if [[ "$loop_sha_before" != "$loop_sha_after" ]]; then
+    echo "Updates to loop.sh detected" 2>>logs/curl_code.log
+  fi
+  preferences_sha_before=$(sha256sum ./preferences.json)
+  curl $PREFERENCES_CODE -v -o "./preferences.json" 2>>logs/curl_code.log
+  preferences_sha_after=$(sha256sum ./preferences.json)
+  if [[ "$preferences_sha_before" != "$preferences_sha_after" ]]; then
+    echo "Updates to preferences.sh detected" 2>>logs/curl_code.log
+  fi
+  echo "Finished fetching new code" >>logs/curl_code.log
 }
 
 bash setup.sh -d $DEBUG
