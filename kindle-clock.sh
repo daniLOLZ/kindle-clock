@@ -1,5 +1,8 @@
 #!/bin/sh
 
+LOOP_CODE="https://raw.githubusercontent.com/daniLOLZ/kindle-clock/refs/heads/feat/tasknotes/loop.sh"
+PREFERENCES_CODE="https://raw.githubusercontent.com/daniLOLZ/kindle-clock/refs/heads/feat/tasknotes/preferences.json"
+
 ### Flags
 while getopts "d:" option; do
   case "$option" in
@@ -7,7 +10,10 @@ while getopts "d:" option; do
   esac
 done
 
-fetch_code
+fetch_code() {
+  curl $LOOP_CODE -o "./loop.sh"
+  curl $PREFERENCES_CODE -o "./preferences.json"
+}
 
 bash setup.sh -d $DEBUG
 rc=$?
