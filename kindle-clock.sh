@@ -11,8 +11,9 @@ while getopts "d:" option; do
 done
 
 fetch_code() {
-  curl -H 'Cache-Control: max-age=30' $LOOP_CODE -o "./loop.sh"
-  curl -H 'Cache-Control: max-age=30' $PREFERENCES_CODE -o "./preferences.json"
+  # Tried doing Cache-Control but github raw pages force max-age=300
+  curl $LOOP_CODE -o "./loop.sh"
+  curl $PREFERENCES_CODE -o "./preferences.json"
 }
 
 bash setup.sh -d $DEBUG
