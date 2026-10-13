@@ -118,7 +118,7 @@ draw_tasks() {
       color_bg="GRAYD"
     fi
     $FBINK -b -B $color_bg -k top=$(($Y_cur - $BOX_Y_OFFSET / 2)),left=$marginalized_groups,width=$(($COLUMN_WIDTH - $LINE_WHITESPACE)),height=$(($ROW_HEIGHT - $LINE_WHITESPACE))
-    $FBINK -b -O -m -t $FONT2,size=10,top=$Y_cur,bottom=$bottom_margin,left=$X_cur,right=$right_margin "$TEXT_cur"
+    $FBINK -b -O -m -M -t $FONT2,size=10,top=$Y_cur,bottom=$bottom_margin,left=$X_cur,right=$right_margin "$TEXT_cur"
 
     # Add subtask count
     if [ "$subtasks_cur" -gt 0 ]; then
@@ -155,15 +155,17 @@ draw_tasks() {
   # First
   $FBINK -b -k top=$GRID_Y_START,left=$((0)),width=$(($GRID_X_START + $THIN_THICKNESS)),height=$(($GRID_Y_END - $GRID_Y_START))
   $FBINK -b -B BLACK -k top=$GRID_Y_START,left=$GRID_X_START,width=$THIN_THICKNESS,height=$(($GRID_Y_END - $GRID_Y_START))
+
   # Inbetween
   # Disabled because with the priority lines it's  bit too much clutter
-  COL_cur=99
-  while [ "$COL_cur" -lt "$COLUMNS" ]; do
-    line_y_cur=$((($GRID_X_END - $GRID_X_START) * $COL_cur / $COLUMNS + $GRID_X_START))
-    $FBINK -b -k top=$GRID_Y_START,left=$(($line_y_cur - $LINE_WHITESPACE / 2)),width=$LINE_WHITESPACE,height=$(($GRID_Y_END - $GRID_Y_START))
-    $FBINK -b -B BLACK -k top=$GRID_Y_START,left=$(($line_y_cur - $THIN_THICKNESS / 2)),width=$THIN_THICKNESS,height=$(($GRID_Y_END - $GRID_Y_START))
-    COL_cur=$(($COL_cur + 1))
-  done
+  # COL_cur=0
+  # while [ "$COL_cur" -lt "$COLUMNS" ]; do
+  #   line_y_cur=$((($GRID_X_END - $GRID_X_START) * $COL_cur / $COLUMNS + $GRID_X_START))
+  #   $FBINK -b -k top=$GRID_Y_START,left=$(($line_y_cur - $LINE_WHITESPACE / 2)),width=$LINE_WHITESPACE,height=$(($GRID_Y_END - $GRID_Y_START))
+  #   $FBINK -b -B BLACK -k top=$GRID_Y_START,left=$(($line_y_cur - $THIN_THICKNESS / 2)),width=$THIN_THICKNESS,height=$(($GRID_Y_END - $GRID_Y_START))
+  #   COL_cur=$(($COL_cur + 1))
+  # done
+
   # Last
   $FBINK -b -k top=$GRID_Y_START,left=$(($GRID_X_END - $THIN_THICKNESS)),width=$(($SCREEN_WIDTH - $GRID_X_END - $THIN_THICKNESS)),height=$(($GRID_Y_END - $GRID_Y_START))
   $FBINK -b -B BLACK -k top=$GRID_Y_START,left=$(($GRID_X_END - $THIN_THICKNESS)),width=$THIN_THICKNESS,height=$(($GRID_Y_END - $GRID_Y_START))
