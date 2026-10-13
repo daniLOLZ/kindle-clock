@@ -181,16 +181,16 @@ draw_tasks() {
 
 update_weather() {
   log "Updating weather..."
-  curl --output "${WEATHER_PATH}" "v2.wttr.in/$CITY.png"
+  curl --output "${WEATHER_PATH}" "v2.wttr.in/${CITY}_q.png"
   img_height=$(($GRID_Y_START - 10))
   img_width=$(($SCREEN_WIDTH - 2 * $OUTER_PADDING))
-  $CONVERT $WEATHER_PATH -strip -negate -colorspace gray -gamma 0.2 -crop ${img_width}x${img_height}+${OUTER_PADDING}+38 "$WEATHER_PATH_CROPPED"
+  $CONVERT $WEATHER_PATH -strip -negate -colorspace gray -gamma 0.2 -crop ${img_width}x${img_height}+0+16 "$WEATHER_PATH_CROPPED"
   cp $WEATHER_PATH "${WEATHER_PATH}_${HOUR}" # Store a circular buffer of images for debug purposes
   log "Weather updated."
 }
 
 draw_weather() {
-  eips -g $WEATHER_PATH_CROPPED -x 11 -y 5
+  eips -g $WEATHER_PATH_CROPPED -x $OUTER_PADDING -y 5
 }
 
 update_data() {
