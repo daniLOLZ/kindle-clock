@@ -319,9 +319,16 @@ update_time() {
   MINUTE=$(date "+%M")
 }
 
+draw_updating_text() {
+  $FBINK -b -t -m $FONT2,size=16,top=10 "Updating..."
+  $FBINK -w -s
+}
+
 main() {
   log "Top of loop (awake!)."
   log "Battery before update: V: $(cat $BATTERY_VOLTAGE), mAH: $(cat $BATTERY_MAH), %: $(cat $BATTERY_CAPACITY)"
+
+  draw_updating_text
 
   update_time
 
