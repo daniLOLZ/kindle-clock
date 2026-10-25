@@ -4,7 +4,7 @@ This turns a Kindle Paperwhite into a pretty dashboard
 
 Forked from mattzzw/kindle-clock and modified it to also hold my tasks from Todoist
 
-![showcase image of the clock](kindle.png)
+![showcase image of the clock](assets/kindle.png)
 
 Modifications from the original:
 

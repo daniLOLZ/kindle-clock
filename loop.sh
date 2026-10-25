@@ -1,0 +1,372 @@
+#!/bin/sh
+. ./shared.sh
+
+# Constants for function
+NIGHT_START="$(jq '.night_start' $PREFERENCES_FILE)"
+NIGHT_END="$(jq '.night_end' $PREFERENCES_FILE)"
+SLEEP_SECS_MIN=1800
+CITY="$(jq '.city' $PREFERENCES_FILE)"
+TIMEZONE_OFFSET="$(jq '.timezone_offset' $PREFERENCES_FILE)" # i hate timezones
+
+# Constants for drawing
+SCREEN_WIDTH="$(jq '.screen_width' $PREFERENCES_FILE)"
+SCREEN_HEIGHT="$(jq '.screen_height' $PREFERENCES_FILE)"
+COLUMNS="$(jq '.columns' $PREFERENCES_FILE)"
+ROWS="$(jq '.rows' $PREFERENCES_FILE)"
+MAX_TASKS=$(($COLUMNS * $ROWS - 1))
+THIN_THICKNESS=2
+OUTER_PADDING=8
+BOX_Y_OFFSET=11
+BOX_X_OFFSET=5
+PL_SEPARATION=5
+PL_SHRINKING=7
+PL_MARGIN=2
+LINE_WHITESPACE=10
+X_TOP_EDGE_PERCENT=$(jq '.task_top_edge_percent' $PREFERENCES_FILE)
+GRID_Y_START=$(awk "BEGIN {printf \"%d\", $X_TOP_EDGE_PERCENT * $SCREEN_HEIGHT}")
+GRID_Y_END=$(($SCREEN_HEIGHT - 10))
+GRID_X_START=$(($OUTER_PADDING))
+GRID_X_END=$(($SCREEN_WIDTH - $GRID_X_START))
+COLUMN_WIDTH=$((($GRID_X_END - $GRID_X_START - $THIN_THICKNESS) / $COLUMNS))
+ROW_HEIGHT=$((($GRID_Y_END - $GRID_Y_START - $THIN_THICKNESS) / $ROWS))
+PRIORITY_WIDTH=$(($PL_SEPARATION * 2 + $THIN_THICKNESS))
+
+#PW2 binaries
+# FBROTATE="echo 270 > /sys/devices/platform/imx_epdc_fb/graphics/fb0/rotate"
+# BACKLIGHT="/sys/devices/platform/imx-i2c.0/i2c-0/0-003c/max77696-bl.0/backlight/max77696-bl/brightness"
+BATTERY_VOLTAGE="/sys/devices/system/wario_battery/wario_battery0/battery_voltage"
+BATTERY_MAH="/sys/devices/system/wario_battery/wario_battery0/battery_mAH"
+BATTERY_CAPACITY="/sys/devices/system/wario_battery/wario_battery0/battery_capacity"
+# TEMP_SENSOR="/sys/devices/platform/imx-i2c.0/i2c-0/0-003c/max77696-battery.0/power_supply/max77696-battery/temp"
+
+# Paths
+CONVERT="/mnt/us/linkss/bin/convert"
+FRIEND_PATH="/mnt/us/images/tails_logo_small_bg.png"
+WEATHER_PATH="/mnt/us/images/weather.png"
+WEATHER_PATH_CROPPED="/mnt/us/images/weather_cropped.png"
+
+priority_to_level() {
+  case "$1" in
+  highest) echo "5" ;;
+  high) echo "4" ;;
+  medium) echo "3" ;;
+  low) echo "2" ;;
+  *) echo "1" ;;
+  esac
+}
+
+update_tasks() {
+  log "Updating tasks..."
+  if scp -i ./server_scp -o ConnectTimeout=5 -o BatchMode=yes \
+    "$TASK_SERVER:$TASK_REMOTE_PATH" "$TASK_LOCAL" 2>/dev/null; then
+    log "Fetched task JSON from server via scp."
+  else
+    log "WARN: could not scp tasks from server, keeping old data."
+    if [ ! -f "$TASK_LOCAL" ]; then
+      TASKS_str=""
+      num_tasks=0
+      return
+    fi
+  fi
+
+  if ! jq empty "$TASK_LOCAL" 2>/dev/null; then
+    log "WARN: tasks.json is not valid JSON, keeping old data."
+    return
+  fi
+
+  TASKS_str=$(jq -r '.[] | select(.status == "next-action") | "\(.name)|\(.priority)"' "$TASK_LOCAL" | while IFS='|' read -r name priority; do
+    level=$(priority_to_level "$priority")
+    printf '%s\n%s\n0\n' "$name" "$level"
+  done)
+
+  # 3 is name, priority, subtask number
+  #TODO add subtask numbers for tasknotes
+  num_tasks=$(($(printf '%s\n' "$TASKS_str" | wc -l) / 3))
+  log "Got $num_tasks tasks from extractor."
+  log "Tasks updated."
+}
+
+draw_tasks() {
+  COL_cur=0
+  ROW_cur=0
+  position_cur=0
+
+  # while [ "$ROW_cur" -lt "$ROWS" ]; do
+  while [ "$position_cur" -lt "$num_tasks" ]; do
+    if [ "$position_cur" -ge "$MAX_TASKS" ]; then
+      break
+    fi
+    # Indices to get the data for the current task from the TASKS_str string
+    # These are 1-indexed because sed starts counting with 1, smh
+    task_line_cur=$(($position_cur * 3 + 1))
+    priority_line_cur=$(($task_line_cur + 1))
+    subtask_line_cur=$(($task_line_cur + 2))
+
+    TEXT_cur=$(echo "$TASKS_str" | sed -n "${task_line_cur} p")
+    PRIORITY_cur=$(echo "$TASKS_str" | sed -n "${priority_line_cur} p")
+    subtasks_cur=$(echo "$TASKS_str" | sed -n "${subtask_line_cur} p")
+
+    # Limits for the current task text
+    X_cur=$(($GRID_X_START + $THIN_THICKNESS + $COL_cur * $COLUMN_WIDTH + $PRIORITY_WIDTH + $BOX_X_OFFSET))
+    Y_cur=$(($GRID_Y_START + $THIN_THICKNESS + $BOX_Y_OFFSET + $ROW_cur * $ROW_HEIGHT))
+    right_margin=$((($COLUMNS - $COL_cur - 1) * $COLUMN_WIDTH + $GRID_X_START + $THIN_THICKNESS + $PRIORITY_WIDTH + $BOX_X_OFFSET))
+    bottom_margin=$((($ROWS - $ROW_cur - 1) * $ROW_HEIGHT + ($SCREEN_HEIGHT - $GRID_Y_END) + $LINE_WHITESPACE / 2))
+    color_bg="WHITE"
+    marginalized_groups=$(($X_cur - $PRIORITY_WIDTH))
+
+    # Add checkerboard pattern
+    if [ "$((($COL_cur + $ROW_cur) % 2))" -eq 0 ]; then
+      color_bg="GRAYD"
+    fi
+    $FBINK -b -B $color_bg -k top=$(($Y_cur - $BOX_Y_OFFSET / 2)),left=$marginalized_groups,width=$(($COLUMN_WIDTH - $LINE_WHITESPACE)),height=$(($ROW_HEIGHT - $LINE_WHITESPACE))
+    $FBINK -b -O -m -M -t $FONT2,size=10,top=$Y_cur,bottom=$bottom_margin,left=$X_cur,right=$right_margin "$TEXT_cur"
+
+    # Add subtask count
+    if [ "$subtasks_cur" -gt 0 ]; then
+      subtasks_present=true
+    else
+      subtasks_present=false
+    fi
+
+    # Add priority lines
+    priority_inc=1
+    while [ "$priority_inc" -lt "$PRIORITY_cur" ]; do
+
+      cur_priority_line_top=$(($Y_cur - $BOX_Y_OFFSET / 2 + $PL_MARGIN + $PL_SHRINKING * ($priority_inc - 1)))
+      cur_priority_line_height=$(($ROW_HEIGHT - $LINE_WHITESPACE - 2 * $PL_MARGIN - 2 * $PL_SHRINKING * ($priority_inc - 1)))
+      $FBINK -b -B BLACK -k top=$cur_priority_line_top,left=$(($marginalized_groups + $PL_SEPARATION * ($priority_inc - 1))),width=$THIN_THICKNESS,height=$cur_priority_line_height
+      $FBINK -b -B BLACK -k top=$cur_priority_line_top,left=$(($SCREEN_WIDTH - $right_margin + $PL_SEPARATION * (4 - $priority_inc - 1))),width=$THIN_THICKNESS,height=$cur_priority_line_height
+      priority_inc=$(($priority_inc + 1))
+    done
+
+    if $subtasks_present; then
+      $FBINK -b -p -m -B $color_bg -t $FONT2,size=6,top=$(($Y_cur + $ROW_HEIGHT - 31)),bottom=$bottom_margin,left=$(($X_cur + $COLUMN_WIDTH - 40)),right=$(($right_margin - $PRIORITY_WIDTH)) "+$subtasks_cur"
+    fi
+
+    COL_cur=$(($COL_cur + 1))
+    if [ "$COL_cur" -ge "$COLUMNS" ]; then
+      COL_cur="0"
+      ROW_cur=$(($ROW_cur + 1))
+    fi
+    # Current task being dealt with, 0 to MAX_TASKS-1
+    position_cur=$(($COL_cur + $ROW_cur * $COLUMNS))
+  done
+
+  ## Make separation lines
+  # First
+  $FBINK -b -k top=$GRID_Y_START,left=$((0)),width=$(($GRID_X_START + $THIN_THICKNESS)),height=$(($GRID_Y_END - $GRID_Y_START))
+  $FBINK -b -B BLACK -k top=$GRID_Y_START,left=$GRID_X_START,width=$THIN_THICKNESS,height=$(($GRID_Y_END - $GRID_Y_START))
+
+  # Inbetween
+  # Disabled because with the priority lines it's  bit too much clutter
+  # COL_cur=0
+  # while [ "$COL_cur" -lt "$COLUMNS" ]; do
+  #   line_y_cur=$((($GRID_X_END - $GRID_X_START) * $COL_cur / $COLUMNS + $GRID_X_START))
+  #   $FBINK -b -k top=$GRID_Y_START,left=$(($line_y_cur - $LINE_WHITESPACE / 2)),width=$LINE_WHITESPACE,height=$(($GRID_Y_END - $GRID_Y_START))
+  #   $FBINK -b -B BLACK -k top=$GRID_Y_START,left=$(($line_y_cur - $THIN_THICKNESS / 2)),width=$THIN_THICKNESS,height=$(($GRID_Y_END - $GRID_Y_START))
+  #   COL_cur=$(($COL_cur + 1))
+  # done
+
+  # Last
+  $FBINK -b -k top=$GRID_Y_START,left=$(($GRID_X_END - $THIN_THICKNESS)),width=$(($SCREEN_WIDTH - $GRID_X_END - $THIN_THICKNESS)),height=$(($GRID_Y_END - $GRID_Y_START))
+  $FBINK -b -B BLACK -k top=$GRID_Y_START,left=$(($GRID_X_END - $THIN_THICKNESS)),width=$THIN_THICKNESS,height=$(($GRID_Y_END - $GRID_Y_START))
+
+  # Horizontal lines
+  $FBINK -b -B BLACK -k top=$GRID_Y_START,left=$GRID_X_START,width=$(($SCREEN_WIDTH - 2 * $GRID_X_START)),height=$THIN_THICKNESS
+  $FBINK -b -B BLACK -k top=$GRID_Y_END,left=$GRID_X_START,width=$(($SCREEN_WIDTH - 2 * $GRID_X_START)),height=$THIN_THICKNESS
+  # Clear space after the grid
+  $FBINK -b -k top=$(($GRID_Y_END + $THIN_THICKNESS)),left=$GRID_X_START,width=$(($SCREEN_WIDTH - 2 * $GRID_X_START)),height=$(($SCREEN_HEIGHT - $GRID_Y_END - $THIN_THICKNESS))
+
+}
+
+update_weather() {
+  log "Updating weather..."
+  curl --output "${WEATHER_PATH}" "v2.wttr.in/${CITY}_q.png"
+  img_height=$(($GRID_Y_START - 10))
+  img_width=$(($SCREEN_WIDTH - 2 * $OUTER_PADDING))
+  $CONVERT $WEATHER_PATH -strip -negate -colorspace gray -gamma 0.2 -crop ${img_width}x${img_height}+0+16 "$WEATHER_PATH_CROPPED"
+  cp $WEATHER_PATH "${WEATHER_PATH}_${HOUR}" # Store a circular buffer of images for debug purposes
+  log "Weather updated."
+}
+
+draw_weather() {
+  eips -g $WEATHER_PATH_CROPPED -x $OUTER_PADDING -y 5
+}
+
+update_data() {
+  BAT=$(cat $BATTERY_CAPACITY)
+  TIME=$(date '+%H:%M')
+  DATE=$(date '+%A %-d %B %Y')
+  # Inefficient but who cares
+  DATE=$(echo $DATE | sed -e "s/Monday/Lunedì/g" -e "s/Tuesday/Martedì/g" -e "s/Wednesday/Mercoledì/g" -e "s/Thursday/Giovedì/g" -e "s/Friday/Venerdì/g" -e "s/Saturday/Sabato/g" -e "s/Sunday/Domenica/g" -e "s/January/Gennaio/g" -e "s/February/Febbraio/g" -e "s/March/Marzo/g" -e "s/April/Aprile/g" -e "s/May/Maggio/g" -e "s/June/Giugno/g" -e "s/July/Luglio/g" -e "s/August/Agosto/g" -e "s/September/Settembre/g" -e "s/October/Ottobre/g" -e "s/November/Novembre/g" -e "s/December/Dicembre/g")
+}
+
+draw_additional() {
+  ## Adjusted coordinates according to display resolution. This is for PW2.
+
+  # $FBINK -b -k top=55,left=340,width=260,height=200
+  # Draw battery
+  $FBINK -b -O -t $FONT2,size=12,top=720,bottom=0,left=455,right=0 "$BAT%"
+
+  # Draw update hour
+  $FBINK -b -O -t $FONT,size=8,top=750,bottom=0,left=455,right=0 "$HOUR:$MINUTE"
+
+  # Draw no wifi notice
+  if [ "$NOWIFI" = "1" ]; then
+    $FBINK -b -t $FONT2,size=12,top=10,bottom=0,left=10,right=0 "No Wifi!"
+  fi
+
+  # Draw a friend
+  eips -g $FRIEND_PATH -x 510 -y 715
+}
+
+draw_hourly() {
+
+  # Add tasks in a grid
+  draw_tasks
+  # Draw the weather
+  draw_weather
+  # Draw the easily obtained stuff
+  draw_additional
+
+  ### update framebuffer
+  $FBINK -w -s
+}
+
+enable_wifi() {
+  lipc-set-prop com.lab126.cmd wirelessEnable 1
+  # ifconfig wlan0 up
+  start wifid
+  # fi
+  TRYCNT=0
+  NOWIFI=0
+  ### Wait for wifi to come up
+  while wait_for_wifi; do
+    if [ ${TRYCNT} -gt 30 ]; then
+      ### waited long enough
+      log "No Wifi... ($TRYCNT)"
+      NOWIFI=1
+      break
+    fi
+    WIFISTATE=$(lipc-get-prop com.lab126.wifid cmState)
+    log "Waiting for Wifi... (try $TRYCNT: $WIFISTATE)"
+    ### Are we stuck in READY state?
+    if [ "$WIFISTATE" = "READY" ]; then
+      ### we have to reconnect
+      log "Reconnecting to Wifi..."
+      /usr/bin/wpa_cli -i wlan0 reconnect
+
+      ### Could also be that kindle forgot the wpa ssid/psk combo
+      #if [ wpa_cli status | grep INACTIVE | wc -l ]; then...
+    fi
+    ### Are we stuck in NA state, whatever that is?
+    if [ "$WIFISTATE" = "NA" ]; then
+      # Try disabling and reenabling???
+      log "Apparently stuck in NA state, checking wifid"
+      log "$(status wifid)"
+    fi
+    sleep 1
+    let TRYCNT=$TRYCNT+1
+  done
+  log "wifiEnabled? $(lipc-get-prop com.lab126.cmd wirelessEnable)"
+  log "wifi: $(lipc-get-prop com.lab126.wifid cmState)"
+  # log "wifi status: $(wpa_cli status)"
+}
+
+disable_wifi() {
+  if [ "$DEBUG" = "0" ] &&
+    [ $(lipc-get-prop com.lab126.cmd wirelessEnable) != "0" ]; then
+    # log "Before disabling: $(lipc-get-prop com.lab126.wifid cmState), $(lipc-get-prop com.lab126.cmd wirelessEnable), $(wpa_cli status)"
+    lipc-set-prop com.lab126.cmd wirelessEnable 0
+    # ifconfig wlan0 down
+    stop wifid
+    # log "After disabling: $(lipc-get-prop com.lab126.wifid cmState), $(lipc-get-prop com.lab126.cmd wirelessEnable), $(wpa_cli status)"
+  fi
+}
+
+sleep_until_next() {
+  if [ "$DEBUG" = "1" ]; then
+    exit
+  fi
+  ### Set Wakeuptimer
+  #echo 0 > /sys/class/rtc/rtc1/wakealarm
+  #echo ${WAKEUP_TIME} > /sys/class/rtc/rtc1/wakealarm
+  NOW=$(date +%s)
+
+  let WAKEUP_TIME="( ( ($NOW + 3599) / 3600 ) * 3600)" # Hack to get next hour
+  # Don't update at night
+  if [ "$HOUR" -ge "$NIGHT_START" ] && [ "$HOUR" -lt "$NIGHT_END" ]; then
+    let WAKEUP_TIME="( ( ($NOW / 86400) * 24) + $NIGHT_END - $TIMEZONE_OFFSET ) * 3600" # Get NIGHT_END of the current day
+  fi
+
+  let SLEEP_SECS=$WAKEUP_TIME-$NOW
+
+  # If there's a problem with the calculation (e.g. time drift), try a minute later
+  if [ $SLEEP_SECS -lt 5 ]; then
+    log "Sleep time set for too low a value of $SLEEP_SECS s, raising it to $SLEEP_SECS_MIN"
+    SLEEP_SECS=$SLEEP_SECS_MIN
+  fi
+
+  rtcwake -d /dev/rtc1 -m no -s $SLEEP_SECS
+
+  log "Going to sleep for $SLEEP_SECS s"
+  ### Go into Suspend to Memory (STR)
+  echo "mem" >/sys/power/state
+}
+
+update_time() {
+  HOUR=$(date "+%H")
+  MINUTE=$(date "+%M")
+}
+
+draw_updating_text() {
+  $FBINK -b -t -m $FONT2,size=16,top=10 "Updating..."
+  $FBINK -w -s
+}
+
+main() {
+  log "Top of loop (awake!)."
+  log "Battery before update: V: $(cat $BATTERY_VOLTAGE), mAH: $(cat $BATTERY_MAH), %: $(cat $BATTERY_CAPACITY)"
+
+  draw_updating_text
+
+  update_time
+
+  log "Enabling Wifi"
+  enable_wifi
+
+  if [ $(lipc-get-prop com.lab126.wifid cmState) = "CONNECTED" ]; then
+    log "Fetching hourly data"
+    log "Setting time..."
+    ntpdate -s it.pool.ntp.org
+    RC=$?
+    log "Time set. ($RC)"
+
+    update_tasks
+    update_weather
+  fi
+
+  # Keep WiFi up as little as possible
+  log "Disabling Wifi"
+  disable_wifi
+
+  update_data
+
+  # Draw
+  clear_screen
+  draw_hourly
+
+  log "Battery after: V: $(cat $BATTERY_VOLTAGE), mAH: $(cat $BATTERY_MAH), %: $(cat $BATTERY_CAPACITY)"
+
+  # Set next wakeup
+  sleep_until_next
+}
+
+### Flags
+while getopts "d:" option; do
+  case "$option" in
+  d) DEBUG=${OPTARG} ;;
+  esac
+done
+
+main

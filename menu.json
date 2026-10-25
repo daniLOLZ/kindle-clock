@@ -3,6 +3,10 @@
     {
       "name": "Weather - Task dashboard",
       "action": "setsid ./kindle-clock.sh"
+    },
+    {
+      "name": "DEBUG Weather - Task dashboard",
+      "action": "setsid ./kindle-clock.sh -d 1"
     }
   ]
 }
