@@ -1,7 +1,7 @@
 #!/bin/sh
 
-LOOP_CODE="https://raw.githubusercontent.com/daniLOLZ/kindle-clock/refs/heads/feat/tasknotes/loop.sh"
-PREFERENCES_CODE="https://raw.githubusercontent.com/daniLOLZ/kindle-clock/refs/heads/feat/tasknotes/preferences.json"
+LOOP_CODE="https://raw.githubusercontent.com/daniLOLZ/kindle-clock/refs/heads/weather/loop.sh"
+PREFERENCES_CODE="https://raw.githubusercontent.com/daniLOLZ/kindle-clock/refs/heads/weather/preferences.json"
 
 ### Flags
 while getopts "d:" option; do
