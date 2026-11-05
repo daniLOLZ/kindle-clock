@@ -320,7 +320,7 @@ update_time() {
 }
 
 draw_updating_text() {
-  $FBINK -b -t -m $FONT2,size=16,top=10 "Updating..."
+  $FBINK -b -t $FONT2,size=16,top=10 "Updating..."
   $FBINK -w -s
 }
 

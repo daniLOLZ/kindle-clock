@@ -9,9 +9,9 @@ FONT="regular=/usr/java/lib/fonts/Palatino-Regular.ttf"
 FONT2="regular=/usr/java/lib/fonts/Futura-Medium.ttf"
 PREFERENCES_FILE="./preferences.json"
 
-TASK_SERVER="$(jq '.server_address' $PREFERENCES_FILE)"
-TASK_REMOTE_PATH="$(jq '.server_task_path' $PREFERENCES_FILE)"
-TASK_LOCAL="$(jq '.local_task_path' $PREFERENCES_FILE)"
+TASK_SERVER=$(jq -r '.server_address' $PREFERENCES_FILE)
+TASK_REMOTE_PATH=$(jq -r '.server_task_path' $PREFERENCES_FILE)
+TASK_LOCAL=$(jq -r '.local_task_path' $PREFERENCES_FILE)
 
 log() {
   echo "$(date '+%Y-%m-%d_%H:%M:%S'): $1" >>$LOG
